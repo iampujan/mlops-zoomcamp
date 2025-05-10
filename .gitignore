@@ -172,3 +172,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# files and dataset
+Anaconda3-2024.10-1-Linux-x86_64.sh
+yellow_tripdata_2023-0*.parquet
