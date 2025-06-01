@@ -176,3 +176,7 @@ cython_debug/
 # files and dataset
 Anaconda3-2024.10-1-Linux-x86_64.sh
 yellow_tripdata_2023-0*.parquet
+.DS_Store
+data/
+*.db
+mlartifacts/
