@@ -44,7 +44,7 @@ def create_X(df, dv=None):
     return X, dv
 
 def train_model(X_train, y_train, X_val, y_val, dv):
-    with mlflow.start_run():
+    with mlflow.start_run() as run:
         
         train = xgb.DMatrix(X_train, label=y_train)
         valid = xgb.DMatrix(X_val, label=y_val)
@@ -78,6 +78,7 @@ def train_model(X_train, y_train, X_val, y_val, dv):
         mlflow.log_artifact("models/preprocessor.b", artifact_path="preprocessor")
 
         mlflow.xgboost.log_model(booster, artifact_path="models_mlflow")
+        return run.info.run_id
 
 
 def run(year, month):
@@ -93,7 +94,9 @@ def run(year, month):
     y_train = df_train[target].values
     y_val = df_val[target].values
 
-    train_model(X_train, y_train, X_val, y_val, dv)
+    run_id = train_model(X_train, y_train, X_val, y_val, dv)
+    print(f"MLflow run_id: {run_id}")
+    return run_id
 
 if __name__ == "__main__":
     # use argparse to get year and month from command line arguments
@@ -102,5 +105,8 @@ if __name__ == "__main__":
     parser.add_argument('--year', type=int, required=True, help='Year of the data to train on')
     parser.add_argument('--month', type=int, required=True, help='Month of the data to train on')
     args = parser.parse_args()
-    run(year=args.year, month=args.month)
-    run(year='2021', month=1)
+    run_id = run(year=args.year, month=args.month)
+    # save run_id to a file
+    with open("run_id.txt", "w") as f:
+        f.write(run_id) 
+    
