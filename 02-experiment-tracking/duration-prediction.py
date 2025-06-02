@@ -99,8 +99,8 @@ def run(year, month):
     X_val, _ = create_X(df_val, dv)
 
     target = 'duration'
-    y_train = df_train['target'].values
-    y_val = df_val['target'].values
+    y_train = df_train[target].values
+    y_val = df_val[target].values
 
     train_model(X_train, y_train, X_val, y_val, dv)
 
