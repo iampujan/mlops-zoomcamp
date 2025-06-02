@@ -180,3 +180,4 @@ yellow_tripdata_2023-0*.parquet
 data/
 *.db
 mlartifacts/
+models/

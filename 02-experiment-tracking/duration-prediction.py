@@ -13,7 +13,8 @@ from pathlib import Path
 mlflow.set_tracking_uri("http://127.0.0.1:5000")
 mlflow.set_experiment("nyc-taxi-experiment")
 
-
+models_folder = Path("models")
+models_folder.mkdir(exist_ok=True)
 
 def read_dataframe(year,month):
     url = f'https://d37ci6vzurychx.cloudfront.net/trip-data/green_tripdata_{year}-{month:02d}.parquet'
@@ -32,64 +33,76 @@ def read_dataframe(year,month):
     return df
 
 
-df_train = read_dataframe('../data/green_tripdata_2021-01.parquet')
-df_val = read_dataframe('../data/green_tripdata_2021-02.parquet')
+df_train = read_dataframe(year='2021', month=1)
+df_val = read_dataframe(year='2021', month=2)
 
+def create_X(df, dv=None):
+    categorical = ['PU_DO']
+    numerical = ['trip_distance']
+    dicts = df[categorical + numerical].to_dict(orient='records')
+    if dv is None:
+        dv = DictVectorizer(sparse=True)
+        X = dv.fit_transform(dicts)
+    else:
+        X = dv.transform(dicts)
+    return X, dv
 
-categorical = ['PU_DO'] #'PULocationID', 'DOLocationID']
-numerical = ['trip_distance']
-
-dv = DictVectorizer()
-
-train_dicts = df_train[categorical + numerical].to_dict(orient='records')
-X_train = dv.fit_transform(train_dicts)
-
-val_dicts = df_val[categorical + numerical].to_dict(orient='records')
-X_val = dv.transform(val_dicts)
-
+X_train, dv = create_X(df_train)
+X_val, _ = create_X(df_val, dv)
 
 target = 'duration'
 y_train = df_train[target].values
 y_val = df_val[target].values
 
+def train_model(X_train, y_train, X_val, y_val, dv):
+    with mlflow.start_run():
+        
+        train = xgb.DMatrix(X_train, label=y_train)
+        valid = xgb.DMatrix(X_val, label=y_val)
+
+        best_params = {
+            'learning_rate': 0.09585355369315604,
+            'max_depth': 30,
+            'min_child_weight': 1.060597050922164,
+            'objective': 'reg:linear',
+            'reg_alpha': 0.018060244040060163,
+            'reg_lambda': 0.011658731377413597,
+            'seed': 42
+        }
+
+        mlflow.log_params(best_params)
+
+        booster = xgb.train(
+            params=best_params,
+            dtrain=train,
+            num_boost_round=30,
+            evals=[(valid, 'validation')],
+            early_stopping_rounds=50
+        )
+
+        y_pred = booster.predict(valid)
+        rmse = root_mean_squared_error(y_val, y_pred)
+        mlflow.log_metric("rmse", rmse)
+
+        with open("models/preprocessor.b", "wb") as f_out:
+            pickle.dump(dv, f_out)
+        mlflow.log_artifact("models/preprocessor.b", artifact_path="preprocessor")
+
+        mlflow.xgboost.log_model(booster, artifact_path="models_mlflow")
 
 
-models_folder = Path("models")
-models_folder.mkdir(exist_ok=True)
+def main(year, month):
+    df_train = read_dataframe(year=year, month=month)
+    df_val = read_dataframe(year=year, month=month + 1)
 
+    X_train, dv = create_X(df_train)
+    X_val, _ = create_X(df_val, dv)
 
-with mlflow.start_run():
-    
-    train = xgb.DMatrix(X_train, label=y_train)
-    valid = xgb.DMatrix(X_val, label=y_val)
+    target = 'duration'
+    y_train = df_train['target'].values
+    y_val = df_val['target'].values
 
-    best_params = {
-        'learning_rate': 0.09585355369315604,
-        'max_depth': 30,
-        'min_child_weight': 1.060597050922164,
-        'objective': 'reg:linear',
-        'reg_alpha': 0.018060244040060163,
-        'reg_lambda': 0.011658731377413597,
-        'seed': 42
-    }
+    train_model(X_train, y_train, X_val, y_val, dv)
 
-    mlflow.log_params(best_params)
-
-    booster = xgb.train(
-        params=best_params,
-        dtrain=train,
-        num_boost_round=30,
-        evals=[(valid, 'validation')],
-        early_stopping_rounds=50
-    )
-
-    y_pred = booster.predict(valid)
-    rmse = root_mean_squared_error(y_val, y_pred)
-    mlflow.log_metric("rmse", rmse)
-
-    with open("models/preprocessor.b", "wb") as f_out:
-        pickle.dump(dv, f_out)
-    mlflow.log_artifact("models/preprocessor.b", artifact_path="preprocessor")
-
-    mlflow.xgboost.log_model(booster, artifact_path="models_mlflow")
-
+if __name__ == "__main__":
+    main(year='2021', month=1)
