@@ -91,7 +91,7 @@ def train_model(X_train, y_train, X_val, y_val, dv):
         mlflow.xgboost.log_model(booster, artifact_path="models_mlflow")
 
 
-def main(year, month):
+def run(year, month):
     df_train = read_dataframe(year=year, month=month)
     df_val = read_dataframe(year=year, month=month + 1)
 
@@ -105,4 +105,4 @@ def main(year, month):
     train_model(X_train, y_train, X_val, y_val, dv)
 
 if __name__ == "__main__":
-    main(year='2021', month=1)
+    run(year='2021', month=1)
