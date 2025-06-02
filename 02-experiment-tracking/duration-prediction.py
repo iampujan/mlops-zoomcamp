@@ -32,10 +32,6 @@ def read_dataframe(year,month):
     
     return df
 
-
-df_train = read_dataframe(year='2021', month=1)
-df_val = read_dataframe(year='2021', month=2)
-
 def create_X(df, dv=None):
     categorical = ['PU_DO']
     numerical = ['trip_distance']
@@ -46,13 +42,6 @@ def create_X(df, dv=None):
     else:
         X = dv.transform(dicts)
     return X, dv
-
-X_train, dv = create_X(df_train)
-X_val, _ = create_X(df_val, dv)
-
-target = 'duration'
-y_train = df_train[target].values
-y_val = df_val[target].values
 
 def train_model(X_train, y_train, X_val, y_val, dv):
     with mlflow.start_run():
@@ -93,7 +82,9 @@ def train_model(X_train, y_train, X_val, y_val, dv):
 
 def run(year, month):
     df_train = read_dataframe(year=year, month=month)
-    df_val = read_dataframe(year=year, month=month + 1)
+    next_year = year if month < 12 else year + 1
+    next_month = month + 1 if month < 12 else 1
+    df_val = read_dataframe(year=next_year, month=next_month)
 
     X_train, dv = create_X(df_train)
     X_val, _ = create_X(df_val, dv)
@@ -105,4 +96,11 @@ def run(year, month):
     train_model(X_train, y_train, X_val, y_val, dv)
 
 if __name__ == "__main__":
+    # use argparse to get year and month from command line arguments
+    import argparse
+    parser = argparse.ArgumentParser(description='Train a model for NYC taxi duration prediction.')
+    parser.add_argument('--year', type=int, required=True, help='Year of the data to train on')
+    parser.add_argument('--month', type=int, required=True, help='Month of the data to train on')
+    args = parser.parse_args()
+    run(year=args.year, month=args.month)
     run(year='2021', month=1)
